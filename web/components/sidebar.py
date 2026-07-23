@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 
 import streamlit as st
@@ -33,6 +34,63 @@ _PROVIDERS: list[tuple[str, str]] = [
 
 _PROVIDER_DISPLAY = [name for name, _ in _PROVIDERS]
 _PROVIDER_KEYS = [key for _, key in _PROVIDERS]
+
+_PROVIDER_API_KEY_ENV = {
+    "minimax": "MINIMAX_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "qwen": "DASHSCOPE_API_KEY",
+    "glm": "ZHIPU_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "google": "GOOGLE_API_KEY",
+    "xai": "XAI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "openai_compatible": "OPENAI_COMPATIBLE_API_KEY",
+}
+
+
+def _default_provider_index() -> int:
+    """Choose the initial provider from explicit config or the only API key.
+
+    ``LLM_PROVIDER`` wins when set. Otherwise, if exactly one supported
+    provider key is configured, select that provider automatically. Multiple
+    configured keys keep the existing MiniMax-first UI default so the choice
+    remains explicit.
+    """
+    configured_provider = os.getenv("LLM_PROVIDER", "").strip().lower()
+    if configured_provider in _PROVIDER_KEYS:
+        return _PROVIDER_KEYS.index(configured_provider)
+
+    configured_providers = [
+        provider
+        for provider, env_name in _PROVIDER_API_KEY_ENV.items()
+        if os.getenv(env_name, "").strip()
+    ]
+    if len(configured_providers) == 1:
+        return _PROVIDER_KEYS.index(configured_providers[0])
+    return 0
+
+
+def _default_model_index(
+    provider: str,
+    mode: str,
+    model_values: list[str],
+) -> int:
+    """Choose a configured model, with current DeepSeek V4 defaults."""
+    env_name = "QUICK_THINK_LLM" if mode == "quick" else "DEEP_THINK_LLM"
+    configured_model = os.getenv(env_name, "").strip()
+    if configured_model in model_values:
+        return model_values.index(configured_model)
+
+    # DeepSeek's current API exposes Flash for routine agent/tool work and Pro
+    # for deeper synthesis. Both support JSON output and tool calls.
+    preferred_model = {
+        ("deepseek", "quick"): "deepseek-v4-flash",
+        ("deepseek", "deep"): "deepseek-v4-pro",
+    }.get((provider, mode))
+    if preferred_model in model_values:
+        return model_values.index(preferred_model)
+    return 0
 
 
 def _resolve_user_input(raw: str) -> tuple[str, str | None]:
@@ -138,6 +196,7 @@ def _render_llm_config() -> None:
         "LLM 供应商",
         range(len(_PROVIDERS)),
         format_func=lambda i: _PROVIDER_DISPLAY[i],
+        index=_default_provider_index(),
         key="llm_provider_idx",
         help="选择你配置了 API Key 的供应商",
     )
@@ -157,7 +216,8 @@ def _render_llm_config() -> None:
             "快速思考模型",
             range(len(quick_options)),
             format_func=lambda i: quick_labels[i],
-            key="quick_model_idx",
+            index=_default_model_index(provider_key, "quick", quick_values),
+            key=f"quick_model_idx_{provider_key}",
             help="用于常规分析任务，速度优先",
         )
         st.session_state["quick_think_llm"] = quick_values[quick_idx]
@@ -166,7 +226,8 @@ def _render_llm_config() -> None:
             "深度思考模型",
             range(len(deep_options)),
             format_func=lambda i: deep_labels[i],
-            key="deep_model_idx",
+            index=_default_model_index(provider_key, "deep", deep_values),
+            key=f"deep_model_idx_{provider_key}",
             help="用于辩论/决策等需要深度推理的任务",
         )
         st.session_state["deep_think_llm"] = deep_values[deep_idx]
