@@ -258,6 +258,51 @@ def _render_llm_config() -> None:
             "Completions），模型 ID 手动填写，Key 在 .env 设 `OPENAI_COMPATIBLE_API_KEY`。"
         )
 
+    # ── 个人 Claude 订阅额度（可选，仅个人自用）────────────────────────
+    _scope_labels = [
+        "关闭（走上面选的供应商）",
+        "仅深度节点（Research/Portfolio）",
+        "所有节点（含 7 个工具分析师）",
+    ]
+    _scope_values = ["off", "deep", "all"]
+    scope_idx = st.selectbox(
+        "个人 Claude 订阅覆盖 (Agent SDK)",
+        range(len(_scope_labels)),
+        format_func=lambda i: _scope_labels[i],
+        key="subscription_scope_idx",
+        help=(
+            "让部分/全部节点经 Claude Agent SDK 走你个人 Pro/Max 订阅额度，"
+            "而非按 token 计费。「所有节点」含 7 个工具分析师（其工具调用已桥接到订阅）。"
+            "需装 [agentsdk] 依赖，且本机 claude 已登录（或设 CLAUDE_CODE_OAUTH_TOKEN）。"
+        ),
+    )
+    scope = _scope_values[scope_idx]
+    st.session_state["subscription_scope"] = scope
+    if scope != "off":
+        # 用别名而非写死版本号：claude CLI 的 opus/sonnet 恒指向最新模型。
+        st.session_state.setdefault("agent_sdk_model", "opus")
+        st.text_input(
+            "订阅使用的 Claude 模型",
+            key="agent_sdk_model",
+            help=(
+                "填别名 opus / sonnet（恒指向最新模型，推荐）或完整模型 id。"
+                "撞额度/失败时自动降级到上面选的供应商 + 对应模型。"
+            ),
+        )
+        if scope == "all":
+            st.caption(
+                "⚠️ 「所有节点」会把 7 个分析师 + 多空/交易员/风险辩手全部压到订阅上，"
+                "订阅是按额度限流的，跑几轮就可能撞上限。可在 config 里把 "
+                "`agent_sdk_quick_model` 设为 `sonnet` 降低消耗（默认已是）。"
+            )
+        if os.getenv("ANTHROPIC_API_KEY"):
+            st.info(
+                "检测到 ANTHROPIC_API_KEY。它**不会**泄进 Agent SDK 子进程"
+                "（已在子进程环境显式置空），所以订阅额度照常生效；"
+                "父进程保留它，是为了让 `anthropic` 仍能作为撞额度后的降级 provider。"
+                "如果你并不打算保留付费降级，可在 .env 里清掉它。"
+            )
+
 
 def render_sidebar() -> None:
     """Render the sidebar with input controls and history."""
@@ -292,6 +337,18 @@ def render_sidebar() -> None:
         value=date.today(),
         key="input_date",
     )
+
+    start_date = st.date_input(
+        "数据起始日期",
+        value=trade_date.replace(day=1),   # 默认本月第一天
+        key="input_start_date",
+        help="技术分析回溯到该日期（默认本月第一天）。分析区间 = 起始日期 → 分析日期，"
+             "用于「按月」或自定义时段分析；留默认即分析当月至今。",
+    )
+    # 分析窗口天数 → market_lookback_days（下限 5 天，保证指标有意义）
+    st.session_state["market_lookback_days"] = max((trade_date - start_date).days, 5)
+    if start_date >= trade_date:
+        st.caption("⚠️ 起始日期应早于分析日期，已按最小窗口（5 天）处理。")
 
     with st.expander("⚙️ 模型配置", expanded=False):
         _render_llm_config()
