@@ -20,6 +20,8 @@
   <a href="./CHANGES_FROM_UPSTREAM.md"><img alt="改动记录" src="https://img.shields.io/badge/改动记录-CHANGES-orange"/></a>
 </p>
 
+---
+
 <p align="center">
   <a href="#为什么做这个-fork">为什么做这个 Fork</a> ·
   <a href="#与上游对比">与上游对比</a> ·
@@ -32,6 +34,7 @@
 </p>
 
 ---
+
 
 ## 为什么做这个 Fork
 
@@ -100,20 +103,30 @@
 
 ### 原版 4 角色（A 股适配）
 
-| 角色 | 职责 | 数据工具 |
-|------|------|---------|
-| 🏪 市场分析师 | K 线形态、技术指标、量价分析 | `get_stock_data`, `get_indicators` |
-| 💬 舆情分析师 | 社交媒体情绪、散户讨论热度 | `get_news` |
-| 📰 新闻分析师 | 行业新闻、公告、宏观事件 | `get_news`, `get_global_news`, `get_insider_transactions` |
-| 📊 基本面分析师 | 财报三表、盈利能力、估值 | `get_fundamentals`, `get_balance_sheet`, `get_cashflow`, `get_income_statement` |
+<table>
+<thead>
+<tr><th nowrap>角色</th><th nowrap>职责</th><th>数据工具</th></tr>
+</thead>
+<tbody>
+<tr><td nowrap>🏪 市场分析师</td><td nowrap>K 线形态、技术指标、量价分析</td><td><code>get_stock_data</code>, <code>get_indicators</code></td></tr>
+<tr><td nowrap>💬 舆情分析师</td><td nowrap>社交媒体情绪、散户讨论热度</td><td><code>get_news</code></td></tr>
+<tr><td nowrap>📰 新闻分析师</td><td nowrap>行业新闻、公告、宏观事件</td><td><code>get_news</code>, <code>get_global_news</code>, <code>get_insider_transactions</code></td></tr>
+<tr><td nowrap>📊 基本面分析师</td><td nowrap>财报三表、盈利能力、估值</td><td><code>get_fundamentals</code>, <code>get_balance_sheet</code>, <code>get_cashflow</code>, <code>get_income_statement</code></td></tr>
+</tbody>
+</table>
 
 ### A 股特化 3 角色（新增）
 
-| 角色 | 职责 | 数据工具 | 为什么需要 |
-|------|------|---------|-----------|
-| 🏛️ 政策分析师 | 监管政策、产业政策、窗口指导 | `get_news`, `get_global_news` | A 股是政策市，政策变化直接影响板块轮动 |
-| 🔥 游资追踪师 | 龙虎榜、大单流向、主力资金动态 | `get_stock_data`, `get_news`, `get_insider_transactions` | 游资是 A 股短线定价的核心力量 |
-| 🔓 解禁监控师 | 限售股解禁、大股东减持、股权质押 | `get_insider_transactions`, `get_news`, `get_fundamentals` | 解禁是 A 股特有的重大供给冲击因素 |
+<table>
+<thead>
+<tr><th nowrap>角色</th><th>职责</th><th>数据工具</th><th>为什么需要</th></tr>
+</thead>
+<tbody>
+<tr><td nowrap>🏛️ 政策分析师</td><td>监管政策、产业政策、窗口指导</td><td><code>get_news</code>, <code>get_global_news</code></td><td>A 股是政策市，政策变化直接影响板块轮动</td></tr>
+<tr><td nowrap>🔥 游资追踪师</td><td>龙虎榜、大单流向、主力资金动态</td><td><code>get_stock_data</code>, <code>get_news</code>, <code>get_insider_transactions</code></td><td>游资是 A 股短线定价的核心力量</td></tr>
+<tr><td nowrap>🔓 解禁监控师</td><td>限售股解禁、大股东减持、股权质押</td><td><code>get_insider_transactions</code>, <code>get_news</code>, <code>get_fundamentals</code></td><td>解禁是 A 股特有的重大供给冲击因素</td></tr>
+</tbody>
+</table>
 
 所有 7 个 Analyst 的报告会流入后续的 Bull/Bear 辩论和三方风险辩论，确保 A 股特色因素贯穿整条决策链。
 
@@ -191,7 +204,12 @@ OPENAI_API_KEY=sk-xxx
 ANTHROPIC_API_KEY=sk-ant-xxx
 
 # ── 方案 G：Kimi（Anthropic 兼容 API）────────────────
-ANTHROPIC_AUTH_TOKEN=your-kimi-token
+ANTHROPIC_API_KEY=your-kimi-token
+ANTHROPIC_BASE_URL=https://api.kimi.com/coding/
+# ⚠️ 两个都要设。只给 key 不给端点，请求会发到 Anthropic 官方并报
+#    「401 invalid x-api-key」。端点也可以写在 config 的 backend_url 里（见下）。
+# ⚠️ 别用 ANTHROPIC_AUTH_TOKEN——那是 Claude Code CLI 的写法，本项目走 langchain，
+#    只认 ANTHROPIC_API_KEY。
 
 # ── 方案 H：任意 OpenAI 兼容网关（9Router / AI Router / 自建代理）──
 OPENAI_COMPATIBLE_API_KEY=sk-xxx     # 也接受 OPENAI_API_KEY
@@ -200,7 +218,9 @@ BACKEND_URL=https://your-relay.example/v1   # 你的网关地址（也可在 Web
 
 ### 3. 运行分析
 
-根据你选择的供应商修改 config：
+新建一个 Python 文件（比如项目根目录下的 `run.py`），把下面这段粘进去，按你选的供应商改 `config` 后运行 `uv run python run.py`。根目录自带的 `main.py` 就是这个示例的可运行版本，直接 `uv run python main.py` 也行。
+
+> `config` 不是仓库里的某个配置文件，而是传给 `TradingAgentsGraph(config=...)` 的一个字典：只写你要覆盖的项，其余项自动取 `tradingagents/default_config.py` 里的默认值（完整可选项见下文「配置说明」一节）。
 
 ```python
 from tradingagents.graph.trading_graph import TradingAgentsGraph
@@ -238,9 +258,34 @@ print(decision)
 ### 4. CLI 方式
 
 ```bash
-tradingagents            # 交互式 CLI
-tradingagents --help     # 查看所有选项
+tradingagents                 # 交互式 CLI
+tradingagents analyze         # 同上（默认命令）
+tradingagents performance     # 决策绩效统计（见下）
+tradingagents --help          # 查看所有选项
 ```
+
+### 5. 决策绩效统计（v0.5.2 新增）
+
+想知道**这套流程过往的判断准不准**，跑：
+
+```bash
+tradingagents performance            # 人读的报告
+tradingagents performance --json     # 机器读的 JSON
+```
+
+数据来自记忆日志：每次分析会落一条决策，下次分析同一只股票时自动拉真实行情回填收益与 alpha（对沪深 300）。**统计本身零 LLM 调用**，只读已经落盘的结果。
+
+输出的核心指标是 **`direction_accuracy`（方向正确率）**——**只有它衡量判断准不准**：看多要跑赢、看空要跑输才算对，Hold 不表态不计入。另外给出 `up_rate`（标的上涨占比）与 `outperform_rate`（跑赢沪深300占比），这两个只描述标的怎么走，**与判断对错无关**：给出卖出评级后股价下跌是判断正确，但它不会计入「上涨占比」。
+
+还有按评级、按标的分组，以及一项**评级区分度检验**——五档评级从 Buy 到 Sell，平均 alpha 是否真的单调递减。评级不单调，说明这套流程的评级没有实际区分能力。
+
+几点务必注意：
+
+- **这不是回测，也不是策略业绩。** 每条记录是「某天做出的判断在固定持有期后的表现」：持有窗口互相重叠、没有仓位管理、未计交易成本与冲击成本，样本还可能有选择偏差。
+- **A 股 beta 很强**，跟着大盘涨不代表判断对，所以方向正确率用 alpha 口径判定，看绝对收益容易高估判断力。
+- **样本量分开算**：方向正确率只统计有方向的评级，已结算总数够、但有方向的不足 20 条时，报告会单独提示这个指标仍是噪音。
+- **样本少于 20 条时报告会自己标注「这些比率基本是噪音」**，不要拿三五条记录下结论。
+- 收益解析不出来的记录会被**跳过**而不是当成 0%——后者会把统计悄悄拉向中性。
 
 ---
 
@@ -283,6 +328,7 @@ TAGENT_PYTHON=/opt/homebrew/bin/python3.12 ./启动.command  # 指定解释器
 
 ### 功能
 
+- **配置记住**：侧栏选的供应商 / 模型 / Base URL / 订阅覆盖写入 `~/.tradingagents/llm_config.json`，重开标签页或重启后自动恢复（v0.5.17）
 - **模型自选**：侧边栏支持 10 个 LLM 供应商切换（MiniMax/DeepSeek/Qwen/GLM/OpenAI/Anthropic/Google/xAI/OpenRouter/Ollama），外加 **「OpenAI 兼容（自定义 base_url）」** 一档可接任意 OpenAI 兼容网关（9Router / AI Router / 自建代理）
 - **一键分析**：输入 6 位 A 股代码 + 分析日期 +「数据起始日期」（默认本月第一天，可自定义技术分析回溯区间，支持按月/自定义时段分析），点击「开始分析」
 - **实时进度**：12 阶段 pipeline 实时显示（7 分析师 → 质量门控 → 辩论 → 风控 → 决策），所有已完成阶段的报告均可展开查看
@@ -304,17 +350,61 @@ TAGENT_PYTHON=/opt/homebrew/bin/python3.12 ./启动.command  # 指定解释器
 
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
-| `llm_provider` | `"minimax"` | LLM 提供商：`minimax` / `deepseek` / `qwen` / `glm` / `openai` / `anthropic` / `google` / `xai` / `ollama` |
-| `deep_think_llm` | `"MiniMax-M2.7"` | Research Manager + Portfolio Manager 用的模型 |
-| `quick_think_llm` | `"MiniMax-M2.7-highspeed"` | 所有 Analyst / Researcher / Trader 用的模型 |
-| `backend_url` | `None` | 自定义 API 端点 / 第三方中转网关。可在 Web UI 侧边栏填写，或用 `.env` 的 `BACKEND_URL`；方便国内通过代理访问 Claude / OpenAI |
+| `llm_provider` | `"deepseek"` | LLM 提供商：`deepseek` / `minimax` / `qwen` / `glm` / `openai` / `anthropic` / `google` / `xai` / `ollama` |
+| `deep_think_llm` | `"deepseek-v4-pro"` | Research Manager + Portfolio Manager 用的模型 |
+| `quick_think_llm` | `"deepseek-v4-flash"` | 所有 Analyst / Researcher / Trader 用的模型 |
+| `backend_url` | `None` | 自定义 API 端点 / 第三方中转网关。可在 Web UI 侧边栏填写，或用 `.env` 的 `BACKEND_URL`；方便国内通过代理访问 Claude / OpenAI。**跑远程 Ollama 也是填这里**：`llm_provider` 选 `ollama`、`backend_url` 填 `http://<主机>:11434/v1`，不填则默认本机 `http://localhost:11434/v1`（#61） |
+| `role_llms` | `{}` | **可选**：给单个角色指定另一家模型（如多空辩手用不同厂商），留空 = 全部沿用 quick/deep 两档，行为不变。见下方「分角色模型」 #39 |
+| `max_tokens` | `None` | 单次回复的最大输出 token 数。`None` = 用 provider 默认值。**报告写到一半就断，先调这里**（不是上下文超长）；也可用环境变量 `TRADINGAGENTS_MAX_TOKENS`。#91 |
 | `output_language` | `"Chinese"` | 报告输出语言（内部辩论始终英文） |
 | `market_lookback_days` | `None` | 技术分析回溯天数（分析区间 = 起始日期 → 分析日期）。Web/CLI 由「数据起始日期」自动算出；`None` = 模型自选（约 30 天）。#16 |
+| `llm_timeout` | `150` | 单次 LLM 请求超时（秒），**对所有走 LangChain 客户端的 provider 生效**（`openai` / `anthropic` / `google` / `azure` 及全部 OpenAI 兼容项，订阅撞额度后的降级客户端也带）。此前没有超时：LangChain 的三个封装层（ChatOpenAI / ChatAnthropic / AzureChatOpenAI）在没给超时时都把 `None` **显式**传给底层 SDK，而这在 httpx 里的语义是「不设超时」——挂起的网关会让分析**永久卡住**（进程活着、零输出、永不返回）。`claude_agent_sdk` 订阅覆盖的**主路径**不走 LangChain 客户端，v0.5.20 起由客户端自己实现同一个配置项：订阅调用的整段预算 = 本项 × 该次调用允许的模型轮数（Agent SDK 把整个工具循环跑在**一次**调用里，单轮调用就等于本项本身），超时按限流同样的路径降级。深度推理模型如果经常在吐出首个 token 之前就超过这个值，把它调大（#100） |
+| `llm_max_retries` | `3` | 应用层重试次数，覆盖 408 / 409 / 429 / 5xx 与连接类错误（含读超时），即 OpenAI SDK 原本会重试的那一套。**仅作用于走 OpenAI 兼容客户端的 provider**（`openai` / `deepseek` / `qwen` / `glm` / `minimax` / `xai` / `openrouter` / `ollama` / `openai_compatible`）：只有它们的 SDK 层重试被置 0 并交给应用层；Anthropic / Google / Azure 沿用各家 SDK 自己的重试，不碰 |
+| `llm_retry_delay` | `5` | 重试初始退避秒数，指数翻倍：5s → 10s → 20s |
 | `max_debate_rounds` | `1` | Bull vs Bear 辩论轮数 |
 | `max_risk_discuss_rounds` | `1` | 风险三方辩论轮数 |
 | `data_vendors` | 全部 `"a_stock"` | 数据供应商路由 |
 | `checkpoint_enabled` | `False` | 启用 SQLite 断点续跑 |
 | `memory_log_max_entries` | `None` | 交易记忆最大条目数 |
+
+---
+
+### 分角色模型（可选，v0.5.0 新增）
+
+默认所有角色共用 `quick_think_llm` / `deep_think_llm` 两档——**大多数人只有一家模型，不需要碰这一项**。
+
+如果你手上有多家模型，可以给单个角色单独指定。最典型的用法是**让多空辩手用不同厂商的模型**：同一个模型分饰多角时倾向于互相附和，换成不同底座才会真的出现反驳。
+
+```python
+config = {
+    "llm_provider": "deepseek",          # 未单独配置的角色仍走这里
+    "deep_think_llm": "deepseek-chat",
+    "quick_think_llm": "deepseek-chat",
+    "role_llms": {
+        "bull": {"provider": "qwen",    "model": "qwen-plus"},
+        "bear": {"provider": "glm",     "model": "glm-4.6"},
+        # provider 省略则沿用 llm_provider，只换模型：
+        "portfolio_manager": {"model": "deepseek-reasoner"},
+    },
+}
+```
+
+合法角色名（其余角色自动沿用两档默认）：
+
+| 分组 | 角色名 |
+|------|--------|
+| 7 个分析师 | `market` `social` `news` `fundamentals` `policy` `hot_money` `lockup` |
+| 辩论与决策 | `bull` `bear` `research_manager` `trader` |
+| 风险三方 | `risk_aggressive` `risk_neutral` `risk_conservative` |
+| 其他 | `quality_gate` `portfolio_manager` |
+
+几点说明：
+
+- **角色名写错会直接报错**，不会静默忽略——否则你会以为配置生效了，实际没有。
+- **相同的 provider + model 只建一个实例**，写 7 个角色不会开 7 条连接。
+- 每家 provider 用**自己的** API Key 环境变量（`DEEPSEEK_API_KEY` / `DASHSCOPE_API_KEY` / `ZHIPU_API_KEY` …），缺哪个会指名报出来。
+- 换了 provider 时**不会**把 `backend_url` 带过去（那是给主 provider 配的端点），需要的话在该角色里单独写 `backend_url`。
+- 同时开着 `claude_agent_sdk` 订阅覆盖时，`role_llms` 里配的角色会**绕开订阅按 token 计费**，启动时会点名警告是哪几个。
 
 ---
 
@@ -325,6 +415,38 @@ TAGENT_PYTHON=/opt/homebrew/bin/python3.12 ./启动.command  # 指定解释器
 
 **Q: 想接一个 OpenAI 兼容的第三方网关/中继（9Router、AI Router、自建代理），自定义 base_url + model？**
 用 **「OpenAI 兼容（自定义 base_url）」** 这一档（v0.2.20 新增）。Web 侧栏「LLM 供应商」选它 →「快速/深度思考模型 ID」手动填你网关支持的 model 名 →「API Base URL」填你的网关地址（如 `https://your-relay.example/v1`）→ `.env` 里设 `OPENAI_COMPATIBLE_API_KEY=你的key`（也接受 `OPENAI_API_KEY`）。CLI 方式选 `OpenAI-Compatible` 后会提示输入 Base URL。它走标准 Chat Completions（非 OpenAI Responses API，兼容性最好），model 名自由填、不受内置清单限制。配置方式等价：`llm_provider="openai_compatible"` + `backend_url="<你的网关>"` + `deep_think_llm/quick_think_llm="<你的model>"`。
+
+**Q: 明明装了 Python 3.12/3.14，`pip install -e .` 却报 `requires a different Python: 3.9.6 not in '>=3.10'`？**
+报错里的 **3.9.6 就是当前这个 `pip` 绑定的解释器版本**——你装的新版本没被它用上（macOS 自带的 `pip3` 常指向系统 3.9）。先确认是哪个解释器在跑：
+
+```bash
+pip3 -V                    # 末尾括号里就是它绑定的 Python
+python3.12 -m pip -V       # 换成你想用的版本再看
+```
+
+用 `python -m pip` 的写法就不会认错人，推荐配合虚拟环境：
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+python -m pip install -e .
+```
+
+Windows 用 `py -3.12 -m venv .venv` + `.venv\Scripts\activate`。（#92）
+
+**Q: 报告写到一半就结束了，上下文明明没超长？**
+撞的是**输出**上限，不是上下文上限——模型一次回复能吐多少 token 是另一个限制。v0.4.1 起，这种截断会在日志里明确告诉你（`因为达到输出上限被截断`），不再是默默给你半篇报告。调大即可：config 里设 `max_tokens`（例如 `"max_tokens": 16000`），或设环境变量 `TRADINGAGENTS_MAX_TOKENS=16000`。
+
+另外，用 **Kimi 等第三方模型名走 `anthropic` 通道**时，langchain 认不出模型名，会默认一个很小的输出上限（旧版本表现为报告普遍偏短）。v0.4.1 起这种情况会自动放宽到 8192，仍不够就显式配 `max_tokens`。#91
+
+**Q: 接 Kimi 报 `401 invalid x-api-key`？**
+说明请求发到了 **Anthropic 官方**而不是 Kimi——光给 key 没给端点。两个都要给：
+
+```bash
+ANTHROPIC_API_KEY=你的kimi-token
+ANTHROPIC_BASE_URL=https://api.kimi.com/coding/   # 或在 config 里写 backend_url
+```
+
+注意 **`ANTHROPIC_AUTH_TOKEN` 在本项目里不生效**（那是 Claude Code CLI 的写法），本项目走 langchain，只读 `ANTHROPIC_API_KEY`。v0.4.1 起，用非 Claude 模型名却没配端点会**在启动时**直接告诉你缺什么，而不是等 Anthropic 回一句看不懂的 401。#89
 
 **Q: 导出 PDF 报 `UnicodeEncodeError: 'latin-1' codec can't encode`？**
 你的环境里装了**旧版 `fpdf`（pyfpdf）**，它和本项目用的 `fpdf2` 都以 `fpdf` 名称导入、互相冲突。执行：`pip uninstall -y fpdf && pip install "fpdf2>=2.8.6"`。实在不行可改用「下载 Markdown」导出（零依赖，永远可用）。
@@ -439,18 +561,6 @@ TradingAgents-Astock/
 
 ---
 
-## 赞赏
-
-如果这个工具帮到了你的投研工作流，欢迎请作者喝杯咖啡 ☕
-
-<p align="center">
-  <a href="https://buymeacoffee.com/simonlin1212"><img src="./assets/bmc-qr.png" width="180" alt="Buy Me a Coffee"></a>
-</p>
-
-> 想要什么功能？欢迎开 [Issue](https://github.com/simonlin1212/tradingagents-astock/issues) 提需求，赞助者的 Issue 优先处理。
-
----
-
 ## License
 
 [Apache License 2.0](./LICENSE)
@@ -501,5 +611,3 @@ config["agent_sdk_quick_model"] = "sonnet"    # 分析师节点
 #### 依赖说明
 
 `[agentsdk]` 的依赖链是 `claude-agent-sdk → mcp → httpx2`，**不碰 httpx**，与 mootdx 的 `httpx<0.26` 无冲突（已 `uv lock` 实测）——和 #87 里被移除的 `[google]` 情况不同，不需要单开 venv。
-
-
