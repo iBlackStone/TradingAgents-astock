@@ -260,6 +260,27 @@ streamlit run web/app.py
 
 打开浏览器访问 `http://localhost:8501`。
 
+### 双击启动（macOS）
+
+项目根目录带有 `启动.command`：在 Finder 里**双击**即可启动 Web UI，不用开终端、不用记命令。
+
+它会自动完成下面这些事（只有首次需要等待）：
+
+1. 查找本机 Python ≥ 3.10（macOS 自带的 3.9 会被跳过）；全都找不到时用 Homebrew 装 `python@3.12`
+2. 没有 `.venv` 就创建；按 `pyproject.toml` 指纹判断是否重装依赖，改了依赖会自动重装
+3. 没有 `.env` 就从 `.env.example` 复制一份，并提示填 API Key
+4. 从 8501 起找一个空闲端口启动，健康检查通过后自动打开浏览器
+
+再次双击时若服务已在运行，会直接打开已有页面（不会重复起进程）。常用覆盖项：
+
+```bash
+TAGENT_PORT=8600 ./启动.command                    # 指定端口
+TAGENT_PIP_INDEX=https://pypi.org/simple ./启动.command   # 换回官方 pip 源
+TAGENT_PYTHON=/opt/homebrew/bin/python3.12 ./启动.command  # 指定解释器
+```
+
+> 首次双击若被 Gatekeeper 拦下（「无法验证开发者」），右键 →「打开」确认一次即可；或先执行 `chmod +x 启动.command`。
+
 ### 功能
 
 - **模型自选**：侧边栏支持 10 个 LLM 供应商切换（MiniMax/DeepSeek/Qwen/GLM/OpenAI/Anthropic/Google/xAI/OpenRouter/Ollama），外加 **「OpenAI 兼容（自定义 base_url）」** 一档可接任意 OpenAI 兼容网关（9Router / AI Router / 自建代理）
